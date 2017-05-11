@@ -75,7 +75,7 @@ stop() ->
 
 start_link(Proc, Tab, Opts, Owner) ->
     ?GEN_SERVER:start_link(
-      {local, Proc}, ?MODULE, [Tab, Opts, get_proc_num(), Owner], []).
+      {local, Proc}, ?MODULE, [Tab, Opts, get_proc_num(Tab), Owner], []).
 
 new(Tab, Opts) ->
     Res = lists:flatmap(
@@ -215,6 +215,8 @@ all() ->
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
+init([{Tab, _}, Opts, N, Pid]) ->
+	init([Tab, Opts, N, Pid]);
 init([Tab, Opts, N, Pid]) ->
     State = #state{procs_num = N,
 		   owner = Pid,
@@ -413,7 +415,9 @@ do_setopts(#state{procs_num = N} = State, Opts) ->
 		lru = LRU,
 		shrink_size = ShrinkSize}.
 
-get_proc_num() ->
+get_proc_num({_Tab, Num}) ->
+	Num;
+get_proc_num(_) ->
     case catch erlang:system_info(logical_processors) of
         Num when is_integer(Num) ->
             Num;
@@ -422,15 +426,17 @@ get_proc_num() ->
     end.
 
 get_proc_by_hash(Tab, Term) ->
-    N = erlang:phash2(Term, get_proc_num()) + 1,
+    N = erlang:phash2(Term, get_proc_num(Tab)) + 1,
     get_proc(Tab, N).
 
+get_proc({Tab, _}, N) ->
+	get_proc(Tab, N);
 get_proc(Tab, N) ->
     list_to_atom(atom_to_list(?PROCNAME) ++ "_" ++
 		 atom_to_list(Tab) ++ "_" ++ integer_to_list(N)).
 
 get_all_procs(Tab) ->
-    [get_proc(Tab, N) || N <- lists:seq(1, get_proc_num())].
+    [get_proc(Tab, N) || N <- lists:seq(1, get_proc_num(Tab))].
 
 now_priority() ->
     -p1_time_compat:system_time(micro_seconds).
