@@ -31,7 +31,7 @@
 -export([start/0, stop/0]).
 -export([start_link/4, new/2, delete/1, delete/3, lookup/3,
 	 insert/4, info/2, tab2list/1, setopts/2,
-	 dirty_lookup/3,
+	 dirty_lookup/3, dirtiest_lookup/3,
          dirty_insert/4, dirty_insert/3, dirty_dist_insert/4,
          dirty_delete/3, dirty_delete/2, dirty_dist_delete/3,
 	 all/0, clean/1]).
@@ -137,6 +137,14 @@ dirty_dist_delete(Tab, Key, F) ->
 lookup(Tab, Key, F) ->
     ?GEN_SERVER:call(
        get_proc_by_hash(Tab, Key), {lookup, Key, F}, ?CALL_TIMEOUT).
+
+dirtiest_lookup({Tab, _}, Key, F) ->
+	dirtiest_lookup(Tab, Key, F);
+dirtiest_lookup(Tab, Key, F) ->
+	case treap:lookup(Key, Tab) of
+	{ok, _Prio, Val} -> {ok, Val};
+	_ -> dirty_lookup(Tab, Key, F)
+	end.
 
 dirty_lookup(Tab, Key, F) ->
     Proc = get_proc_by_hash(Tab, Key),
